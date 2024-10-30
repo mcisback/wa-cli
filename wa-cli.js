@@ -38,7 +38,15 @@ const options = {
 };
 const {
     values,
+    positionals: positionalsTmp
 } = parseArgs({ args, options, allowPositionals: true });
+
+const positionals = positionalsTmp.slice(2)
+
+console.log(values);
+console.log(positionals);
+
+// process.exit(1);
 
 if(Object.keys(values).length <= 0) {
     console.log('Missing cmd newsession or load session');
@@ -143,7 +151,10 @@ if(loadSession && runCmd) {
     
     (async () => {
         try {
-            await runWaCmd(CHROME_SESSION_DIRECTORY, runCmd);
+            await runWaCmd(CHROME_SESSION_DIRECTORY, {
+                cmd: runCmd,
+                data: positionals,
+            });
             //process.exit(0); // Move this here, or remove if you want the process to stay open
         } catch (error) {
             console.error('Error opening WA:', error);
@@ -153,8 +164,8 @@ if(loadSession && runCmd) {
 }
 
 
-async function runWaCmd(userDataDir, cmd) {
-    console.log('runWaCmd running command', cmd)
+async function runWaCmd(userDataDir, { cmd, data }) {
+    console.log('runWaCmd running command', cmd, data)
 
     const browser = await puppeteer.launch({
         headless: false,
@@ -189,10 +200,43 @@ async function runWaCmd(userDataDir, cmd) {
             console.log('· ' + chat)
         })
 
+        await browser.close();
+
         return chats;
+    } else if (cmd === 'send-msg') {
+        if(data.length !== 2) {
+            console.log('Missing chat and message');
+
+            await browser.close()
+
+            return;
+        }
+
+        const chat = data[0];
+        const msg = data[1];
+
+        await page.waitForSelector('div[role="listitem"]');
+
+        const chatEl = await page.evaluate(( chat ) => {
+            const chats = [...document.querySelectorAll('div[role="listitem"]')]
+
+            for(i = 0; i < chats.length; i++) {
+                const el = chats[i];
+                
+                if(el.innerText.split('\n')[0].contains(chat)) {
+                    el.click();
+
+                    return el;
+                }
+            }
+        }, chat)
+
+        console.log('Found!', chatEl)
+
+        //await page.click(chatEl);
     }
 
-    await browser.close();
+    // await browser.close();
 }
 
 async function openWa(userDataDir) {
