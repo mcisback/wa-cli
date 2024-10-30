@@ -22,9 +22,16 @@ sudo cp wa-cli.js /usr/local/bin
 wa-cli --newSession
 ```
 
-Save the sesssion chrome id for example: 1ef96f6b-c3e5-6ea0-bb28-36286423835a
+Use your mobile to link a device as you would have done for a regular use
+
+Wait for the chat interface to load completely and the close browser (this is not headless **yet**)
+
+Save the session chrome id for example: 1ef96f6b-c3e5-6ea0-bb28-36286423835a
 
 ## Run Whatsapp
+
+This open a whatsapp chat window
+
 ```
 wa-cli --loadSession 1ef96f6b-c3e5-6ea0-bb28-36286423835a
 ```

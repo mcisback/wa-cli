@@ -24,6 +24,10 @@ const options = {
         type: 'string',
         short: 'l',
         long: '-load-session'
+    },
+    runCmd: {
+        type: 'string',
+        short: 'x',
     }
 };
 const {
@@ -38,7 +42,8 @@ if(Object.keys(values).length <= 0) {
 
 const {
     newSession,
-    loadSession
+    loadSession,
+    runCmd
 } = values;
 
 const WA_URL = 'https://web.whatsapp.com'
@@ -95,7 +100,7 @@ if(newSession) {
     
 }
 
-if(loadSession) {
+if(loadSession && !runCmd) {
     CHROME_SESSION_UUID = loadSession
     console.log('Loading chrome session', loadSession);
     
@@ -118,10 +123,45 @@ if(loadSession) {
     })();
 }
 
-async function openWa(userDataDir) {
+if(loadSession && runCmd) {
+    CHROME_SESSION_UUID = loadSession
+    console.log('Loading chrome session', loadSession);
+    
+    const CHROME_SESSION_DIRECTORY = path.join(WABOT_CONFIG_FIR, `/${CHROME_SESSION_UUID}`);
+    
+    if (!fs.existsSync(CHROME_SESSION_DIRECTORY)) {
+        console.log('Session doesn\'t exists; retry login');
+        
+        process.exit(1);
+    }
+    
+    (async () => {
+        try {
+            await runWaCmd(CHROME_SESSION_DIRECTORY, runCmd);
+            //process.exit(0); // Move this here, or remove if you want the process to stay open
+        } catch (error) {
+            console.error('Error opening WA:', error);
+            process.exit(1);
+        }
+    })();
+}
+
+
+async function runWaCmd(userDataDir, cmd) {
+    console.log('runWaCmd running command', cmd)
+
     const browser = await puppeteer.launch({
         headless: false,
-        userDataDir
+        userDataDir,
+        timeout: 120000,
+        defaultViewport: {
+            width: 1280,
+            height: 720
+        },
+        args: [
+            // '--mute-audio', // this mutes the entire browser, not just one tab
+            '--profile-directory=Default',
+        ]
     });
     
     const page = await browser.newPage();
@@ -129,7 +169,47 @@ async function openWa(userDataDir) {
     // Navigate to mychat.com
     await page.goto(WA_URL, { waitUntil: 'networkidle2' });
     
-    // await page.waitForSelector('[data-icon="menu"]');
+    await page.waitForSelector('[data-icon="menu"]');
+
+    // TODO: add scroll to bottom
+    if(cmd === 'list-chats') {
+        const chats = await page.evaluate(() => {
+            const chats = [...document.querySelectorAll('div[role="listitem"]')].map(x => x.innerText.split('\n')[0].trim())
+
+            return chats;
+        });
+
+        chats.forEach(chat => {
+            console.log('· ' + chat)
+        })
+
+        return chats;
+    }
+
+    await browser.close();
+}
+
+async function openWa(userDataDir) {
+    const browser = await puppeteer.launch({
+        headless: false,
+        userDataDir,
+        timeout: 120000,
+        defaultViewport: {
+            width: 1280,
+            height: 720
+        },
+        args: [
+            // '--mute-audio', // this mutes the entire browser, not just one tab
+            '--profile-directory=Default',
+        ]
+    });
+    
+    const page = await browser.newPage();
+    
+    // Navigate to mychat.com
+    await page.goto(WA_URL, { waitUntil: 'networkidle2' });
+    
+    await page.waitForSelector('[data-icon="menu"]');
 }
 
 function delay(time) {
