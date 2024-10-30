@@ -166,7 +166,7 @@ if(loadSession && runCmd) {
 
 async function runWaCmd(userDataDir, { cmd, data }) {
     console.log('runWaCmd running command', cmd, data)
-
+    
     const browser = await puppeteer.launch({
         headless: false,
         userDataDir,
@@ -187,55 +187,78 @@ async function runWaCmd(userDataDir, { cmd, data }) {
     await page.goto(WA_URL, { waitUntil: 'networkidle2' });
     
     await page.waitForSelector('[data-icon="menu"]');
-
+    
     // TODO: add scroll to bottom
     if(cmd === 'list-chats') {
         const chats = await page.evaluate(() => {
             const chats = [...document.querySelectorAll('div[role="listitem"]')].map(x => x.innerText.split('\n')[0].trim())
-
+            
             return chats;
         });
-
+        
         chats.forEach(chat => {
             console.log('· ' + chat)
         })
-
+        
         await browser.close();
-
+        
         return chats;
     } else if (cmd === 'send-msg') {
         if(data.length !== 2) {
             console.log('Missing chat and message');
-
+            
             await browser.close()
-
+            
             return;
         }
-
+        
         const chat = data[0];
         const msg = data[1];
-
+        
         await page.waitForSelector('div[role="listitem"]');
-
+        
         const chatEl = await page.evaluate(( chat ) => {
-            const chats = [...document.querySelectorAll('div[role="listitem"]')]
+            function cssPath(el) {
+                if (!(el instanceof Element)) return;
+                var path = [];
+                while (el.nodeType === Node.ELEMENT_NODE) {
+                    var selector = el.nodeName.toLowerCase();
+                    if (el.id) {
+                        selector += '#' + el.id;
+                        path.unshift(selector);
+                        break;
+                    } else {
+                        var sib = el,
+                        nth = 1;
+                        while ((sib = sib.previousElementSibling)) {
+                            if (sib.nodeName.toLowerCase() == selector) nth++;
+                        }
+                        if (nth != 1) selector += ':nth-of-type(' + nth + ')';
+                    }
+                    path.unshift(selector);
+                    el = el.parentNode;
+                }
+                return path.join(' > ');
+            }
 
+            const chats = [...document.querySelectorAll('div[role="listitem"]')]
+            
             for(i = 0; i < chats.length; i++) {
                 const el = chats[i];
                 
                 if(el.innerText.split('\n')[0].contains(chat)) {
-                    el.click();
-
-                    return el;
+                    // el.click();
+                    
+                    return cssPath(el);
                 }
             }
         }, chat)
-
+        
         console.log('Found!', chatEl)
-
-        //await page.click(chatEl);
+        
+        await page.click(chatEl);
     }
-
+    
     // await browser.close();
 }
 
