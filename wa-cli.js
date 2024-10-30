@@ -13,6 +13,12 @@ class PageEventsEmitter extends EventEmitter {}
 
 const { parseArgs } = require('node:util');
 
+// TODO: set user agent
+// TODO: load config from session uuid
+// TODO: set user agent and other params from config
+// TODO: list chat headless if possible
+// TODO: test to already launched chrome with browserURL: http://localhost:9992 or something similar
+
 const args = process.argv;
 const options = {
     newSession: {
